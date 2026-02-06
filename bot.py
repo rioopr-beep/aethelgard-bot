@@ -1,71 +1,90 @@
 import logging
 import sqlite3
 import random
+import asyncio
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# === LOGGING SISTEM ===
+# === 1. PENGATURAN LOGGING (PENTING UNTUK MONITOR RAILWAY) ===
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
+logger = logging.getLogger(__name__)
 
+# === 2. IDENTITAS BOT ===
 TOKEN = '8507170484:AAHpgJC0jngZ7h1hDaG5UOyLoIoeQwvdhzI'
 ADMIN_ID = 1408120389
 
-# === DATABASE ===
+# === 3. SISTEM DATABASE ===
 def init_db():
-    conn = sqlite3.connect('aethelgard.db')
-    conn.execute('''CREATE TABLE IF NOT EXISTS users (
-        user_id INTEGER PRIMARY KEY, username TEXT, aether INTEGER DEFAULT 1000)''')
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('aethelgard.db')
+        conn.execute('''CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY, 
+            username TEXT, 
+            aether INTEGER DEFAULT 1000)''')
+        conn.commit()
+        conn.close()
+        logger.info("Database Aethelgard berhasil diinisialisasi.")
+    except Exception as e:
+        logger.error(f"Gagal inisialisasi database: {e}")
 
+# === 4. MENU NAVIGASI ===
 def get_menu(uid):
-    layout = [
+    buttons = [
         [KeyboardButton("🎰 Lotre Kerajaan"), KeyboardButton("🎁 Gaji")],
         [KeyboardButton("⚒️ Jalankan Quest"), KeyboardButton("🏆 Papan Peringkat")],
         [KeyboardButton("❓ Bantuan")]
     ]
     if uid == ADMIN_ID:
-        layout.append([KeyboardButton("👑 Kendali Penguasa")])
-    return ReplyKeyboardMarkup(layout, resize_keyboard=True)
+        buttons.append([KeyboardButton("👑 Kendali Penguasa")])
+    return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
 
-# === LOGIKA PERINTAH ===
+# === 5. LOGIKA PERINTAH ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
+    username = update.effective_user.first_name
     await update.message.reply_text(
-        "🏰 **AETHELGARD CLOUD ONLINE**\n\nSelamat datang, Penguasa! Sistem telah berpindah sepenuhnya ke singgasana Cloud.",
+        f"🏰 **ISTANA AETHELGARD ONLINE**\n\nSelamat datang kembali, **{username}**!\nSistem Cloud Railway telah aktif sepenuhnya.",
         reply_markup=get_menu(uid),
         parse_mode='Markdown'
     )
 
-async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     uid = update.effective_user.id
     
-    # Respon cepat tanpa beban database berat
     if "Gaji" in text:
-        await update.message.reply_text("💰 +1000 Aether telah masuk ke kas Anda!")
+        await update.message.reply_text("💰 **+1000 Aether** telah ditambahkan ke pundi-pundi Anda!")
+    
     elif "Lotre" in text:
-        res = random.choice(["MENANG! +500", "KALAH! -200"])
-        await update.message.reply_text(f"🎰 Hasil: {res}")
+        hasil = random.choice(["MENANG! 🏆 (+500 Aether)", "KALAH! 💀 (-200 Aether)"])
+        await update.message.reply_text(f"🎰 **Hasil Lotre:** {hasil}")
+        
     elif "Quest" in text:
-        await update.message.reply_text("⚒️ Quest selesai! +200 Aether.")
+        await update.message.reply_text("⚒️ **Quest Selesai!** Pasukan Anda membawa pulang 200 Aether.")
+        
     elif "Bantuan" in text:
-        await update.message.reply_text("📜 Gunakan tombol menu untuk memberikan perintah.")
+        await update.message.reply_text("❓ **Butuh Titah?** Gunakan tombol menu di bawah untuk mengelola kerajaan.")
 
-# === EKSEKUSI UTAMA ===
+# === 6. EKSEKUSI SERVER (PUNCAK FINAL) ===
 if __name__ == '__main__':
+    # Inisialisasi Database
     init_db()
     
-    # Menggunakan ApplicationBuilder (Standar Railway/v20+)
-    app = ApplicationBuilder().token(TOKEN).build()
-    
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
-    
-    print("--- ⚡ AETHELGARD SUPREME ONLINE ⚡ ---")
-    
-    # drop_pending_updates=True untuk membersihkan pesan macet sebelumnya
-    app.run_polling(drop_pending_updates=True)
+    try:
+        # Membangun aplikasi dengan standar Railway/v20+
+        application = ApplicationBuilder().token(TOKEN).build()
+        
+        # Menambahkan Handler
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        
+        print("--- ⚡ AETHELGARD SUPREME ONLINE ⚡ ---")
+        
+        # Menjalankan Polling (drop_pending_updates=True sangat krusial di Cloud)
+        application.run_polling(drop_pending_updates=True)
+        
+    except Exception as e:
+        logger.error(f"Bot berhenti karena kesalahan: {e}")
