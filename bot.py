@@ -1,13 +1,16 @@
+import logging
 import sqlite3
 import random
-import os
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# === 👑 IDENTITAS KERAJAAN ===
+# === KONFIGURASI LOGGING ===
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
 TOKEN = '8507170484:AAHpgJC0jngZ7h1hDaG5UOyLoIoeQwvdhzI'
 ADMIN_ID = 1408120389
 
+# === DATABASE ===
 def init_db():
     conn = sqlite3.connect('aethelgard.db')
     conn.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -22,10 +25,14 @@ def get_menu(uid):
     if uid == ADMIN_ID: layout.append([KeyboardButton("👑 Kendali Penguasa")])
     return ReplyKeyboardMarkup(layout, resize_keyboard=True)
 
+# === COMMANDS ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
-    await update.message.reply_text("🏰 **AETHELGARD CLOUD ONLINE**\nSistem berjalan di server pusat Railway.", 
-                                   reply_markup=get_menu(uid), parse_mode='Markdown')
+    await update.message.reply_text(
+        "🏰 **AETHELGARD CLOUD ONLINE**\nSistem berhasil bertakhta di Railway!", 
+        reply_markup=get_menu(uid), 
+        parse_mode='Markdown'
+    )
 
 async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -34,10 +41,10 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     responses = {
         "Gaji": "💰 +1000 Aether telah masuk ke kas Anda!",
         "Lotre": f"🎰 Hasil Lotre: {random.choice(['MENANG! +500', 'KALAH! -200'])}",
-        "Quest": "⚒️ Quest diselesaikan oleh pasukan bayaran Cloud. +200 Aether!",
-        "Bantuan": "❓ Sistem Cloud aktif 24 jam. Gunakan tombol menu untuk titah.",
-        "Peringkat": "🏆 Anda adalah penguasa tertinggi saat ini!",
-        "Kendali Penguasa": "👑 Otoritas Gemita diakui oleh sistem."
+        "Quest": "⚒️ Quest berhasil! +200 Aether.",
+        "Bantuan": "❓ Sistem Cloud aktif 24 jam.",
+        "Peringkat": "🏆 Memuat data peringkat...",
+        "Kendali Penguasa": "👑 Akses Penguasa Gemita Diterima."
     }
     
     for key, val in responses.items():
@@ -45,11 +52,17 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(val)
             return
 
+# === MAIN RUNNER ===
 if __name__ == '__main__':
     init_db()
-    app = Application.builder().token(TOKEN).build()
+    
+    # Membangun aplikasi dengan cara terbaru (v20+)
+    app = ApplicationBuilder().token(TOKEN).build()
+    
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
-    print("Aethelgard is flying on Cloud!")
+    
+    print("--- SERVER AETHELGARD DIAKTIFKAN ---")
+    
+    # Menjalankan bot
     app.run_polling(drop_pending_updates=True)
-
